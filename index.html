@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Quant Pro">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>AI Crypto Quant Pro</title>
+<style>
+:root{color-scheme:dark;--bg:#080d19;--panel:#111a2b;--panel2:#172238;--text:#eef3ff;--muted:#8d9ab2;--green:#27d7a0;--red:#ff667d;--blue:#7da7ff;--line:#26334b}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#152443 0,#080d19 48%);color:var(--text);font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding-bottom:calc(82px + env(safe-area-inset-bottom))}
+header{padding:calc(18px + env(safe-area-inset-top)) 18px 14px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#080d19eF;backdrop-filter:blur(16px);z-index:5;border-bottom:1px solid #1d2940}
+.brand{font-weight:800;letter-spacing:.2px;font-size:17px}.brand span{color:var(--green)}.live{font-size:11px;color:var(--green);border:1px solid #1b775e;padding:5px 8px;border-radius:99px}
+main{max-width:760px;margin:auto;padding:14px 14px 24px}.warning{background:#352b16;border:1px solid #80602a;color:#f5d99b;border-radius:12px;padding:10px 12px;font-size:12px;line-height:1.5;margin-bottom:14px}
+.row{display:flex;gap:10px}.card{background:linear-gradient(145deg,#141f33,#101827);border:1px solid var(--line);border-radius:17px;padding:15px;min-width:0}.hero{margin-bottom:12px}.muted{color:var(--muted);font-size:12px}.balance{font-size:30px;font-weight:800;letter-spacing:-1px;margin:7px 0}.positive{color:var(--green)}.negative{color:var(--red)}.metric-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:10px 0}.metric{background:#0c1423;border-radius:12px;padding:11px}.metric strong{display:block;font-size:17px;margin-top:5px}
+.section-title{font-size:16px;font-weight:750;margin:20px 2px 10px;display:flex;justify-content:space-between;align-items:center}
+select,button{font:inherit;color:var(--text)}select{background:#0c1423;border:1px solid var(--line);border-radius:10px;padding:9px}
+.chart-card{padding:12px}.chart-head{display:flex;justify-content:space-between;align-items:center}.price{font-size:23px;font-weight:800;margin:8px 0 0}.chart{width:100%;height:185px;display:block}
+.signal{display:flex;justify-content:space-between;align-items:center;gap:12px}.signal-pill{border-radius:99px;padding:7px 10px;font-size:12px;font-weight:700;background:#26334b}.signal-pill.buy{color:var(--green);background:#10382f}.signal-pill.sell{color:var(--red);background:#3a1e2a}
+.actions{display:flex;gap:9px;margin-top:12px}.btn{border:0;border-radius:12px;padding:13px 10px;font-weight:750;flex:1;background:#25334d}.btn.primary{background:linear-gradient(90deg,#16b98a,#0c9872);color:#041b15}.btn:disabled{opacity:.45}
+.coins{display:grid;gap:8px}.coin{display:flex;align-items:center;justify-content:space-between;padding:12px;background:#0c1423;border:1px solid #202d44;border-radius:12px}.coin b{display:block}.coin small{color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:12px}td,th{text-align:left;padding:10px 5px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:500}
+.nav{position:fixed;bottom:0;left:0;right:0;z-index:10;display:flex;justify-content:space-around;background:#0b1220f2;border-top:1px solid var(--line);padding:10px 5px calc(10px + env(safe-area-inset-bottom));backdrop-filter:blur(18px)}.nav button{border:0;background:none;color:var(--muted);font-size:11px;display:grid;gap:4px;justify-items:center}.nav button.active{color:var(--green)}.nav span{font-size:19px}
+.page{display:none}.page.active{display:block}.subtle{font-size:12px;color:var(--muted);line-height:1.6}.empty{color:var(--muted);text-align:center;padding:22px 8px}
+.toast{position:fixed;bottom:95px;left:50%;transform:translateX(-50%);background:#24344d;padding:10px 15px;border-radius:12px;display:none;z-index:20;font-size:13px;max-width:90%;text-align:center}
+@media(min-width:650px){main{padding-top:22px}.metric-grid{grid-template-columns:repeat(4,1fr)}.chart{height:250px}}
+</style>
+</head>
+<body>
+<header><div class="brand">◈ AI <span>CRYPTO</span> QUANT PRO</div><div class="live">● PAPER MODE</div></header>
+<main>
+<div class="warning">模拟交易模式 · 仅使用 OKX 公开行情，不连接真实账户、不发送真实订单。策略信号不保证盈利。</div>
+
+<section id="dashboard" class="page active">
+ <div class="card hero">
+  <div class="muted">模拟账户净值 · USDT</div><div class="balance" id="equity">1,000.00</div>
+  <div class="muted">可用现金 <b id="cash">1,000.00 USDT</b>　·　累计已实现盈亏 <b id="realized">0.00</b></div>
+  <div class="metric-grid">
+   <div class="metric"><div class="muted">当前持仓</div><strong id="holding">无持仓</strong></div>
+   <div class="metric"><div class="muted">未实现盈亏</div><strong id="unrealized">0.00 USDT</strong></div>
+   <div class="metric"><div class="muted">策略评分</div><strong id="score">-- / 100</strong></div>
+   <div class="metric"><div class="muted">今日交易</div><strong id="tradecount">0 笔</strong></div>
+  </div>
+ </div>
+ <div class="section-title">市场行情 <select id="symbol"><option>BTC-USDT</option><option>ETH-USDT</option><option>SOL-USDT</option><option>XRP-USDT</option><option>DOGE-USDT</option></select></div>
+ <div class="card chart-card">
+  <div class="chart-head"><div><div class="muted">最新价格 · OKX</div><div class="price" id="lastprice">加载中…</div></div><div id="change" class="muted">--</div></div>
+  <canvas class="chart" id="chart" aria-label="价格走势图"></canvas>
+  <div class="muted" id="updated">等待行情数据…</div>
+ </div>
+ <div class="section-title">AI 综合策略分析 <span class="muted">EMA · RSI · MACD · VOL</span></div>
+ <div class="card">
+  <div class="signal"><div><div class="muted">当前策略观点</div><b id="signaltext">正在分析…</b></div><div id="signalpill" class="signal-pill">分析中</div></div>
+  <div class="metric-grid">
+   <div class="metric"><div class="muted">RSI(14)</div><strong id="rsi">--</strong></div>
+   <div class="metric"><div class="muted">趋势</div><strong id="trend">--</strong></div>
+   <div class="metric"><div class="muted">MACD 柱</div><strong id="macd">--</strong></div>
+   <div class="metric"><div class="muted">成交量</div><strong id="volume">--</strong></div>
+  </div>
+  <div class="subtle" id="reason">获取数据后显示指标解释。</div>
+  <div class="actions"><button class="btn primary" id="runtrade">分析并执行模拟交易</button><button class="btn" id="refresh">刷新行情</button></div>
+ </div>
+ <div class="section-title">关注币种</div><div class="coins" id="watchlist"><div class="empty">行情加载中…</div></div>
+</section>
+
+<section id="portfolio" class="page">
+ <div class="section-title">模拟资产</div><div class="card">
+  <div class="muted">账户净值</div><div class="balance" id="port-equity">1,000.00 USDT</div>
+  <div class="subtle">初始资金 1,000 USDT · 现货模拟 · 单币最大仓位 25% · 风险预算约为账户净值的 1%。</div>
+ </div>
+ <div class="section-title">当前持仓</div><div class="card" id="positionbox"><div class="empty">当前没有模拟持仓</div></div>
+ <div class="actions"><button class="btn" id="closepos">模拟平仓</button><button class="btn" id="reset">重置模拟账户</button></div>
+ <div class="section-title">风险参数</div><div class="card subtle">单笔风险预算：1%<br>单币名义仓位上限：25%<br>参考止损距离：3%（用于仓位计算，不代表交易所挂单）<br>模拟手续费：单边 0.1%<br>无杠杆、无借贷。</div>
+</section>
+
+<section id="history" class="page">
+ <div class="section-title">模拟交易记录</div><div class="card" style="overflow:auto"><table><thead><tr><th>时间</th><th>方向</th><th>价格</th><th>数量</th><th>盈亏</th></tr></thead><tbody id="historyrows"><tr><td colspan="5" class="empty">暂无记录</td></tr></tbody></table></div>
+ <div class="section-title">策略回测</div><div class="card">
+  <div class="subtle">使用当前已下载的 K 线运行简化历史回测。回测计入 0.1% 单边手续费，不包含滑点、点差、资金费率和部分成交。</div>
+  <button class="btn primary" style="width:100%;margin-top:12px" id="backtest">运行当前交易对回测</button>
+  <div id="backtestresult" class="subtle" style="margin-top:12px">尚未运行回测。</div>
+ </div>
+</section>
+
+<section id="settings" class="page">
+ <div class="section-title">应用设置</div>
+ <div class="card">
+  <div class="muted">交易所</div><b>OKX 公共行情</b><hr style="border-color:var(--line);margin:14px 0">
+  <div class="muted">运行模式</div><b>模拟交易 · 不连接真实账户</b><hr style="border-color:var(--line);margin:14px 0">
+  <div class="muted">K线周期</div><select id="interval"><option value="1H">1小时</option><option value="15m">15分钟</option><option value="4H">4小时</option><option value="1D">1天</option></select>
+  <div class="subtle" style="margin-top:14px">应用数据保存在当前设备浏览器本地。清除浏览器数据或更换设备可能导致模拟记录丢失。</div>
+ </div>
+ <div class="section-title">安全与免责声明</div><div class="card subtle">
+  本应用为教育和策略研究工具，不构成投资建议。量化策略可能连续亏损，历史回测不代表未来表现。V1 不提供真实下单功能。不要向任何人分享 API Secret、助记词或私钥。未来如开发实盘，必须把密钥放在受保护的服务端，关闭提现权限并进行独立安全测试。
+ </div>
+ <div class="section-title">安装到手机</div><div class="card subtle">部署到 HTTPS 网站后，iPhone 可在 Safari 点“分享”→“添加到主屏幕”；Android 可在 Chrome 菜单选择“安装应用”。</div>
+</section>
+</main>
+<nav class="nav">
+ <button class="active" data-page="dashboard"><span>⌂</span>行情</button>
+ <button data-page="portfolio"><span>◫</span>资产</button>
+ <button data-page="history"><span>↗</span>记录</button>
+ <button data-page="settings"><span>⚙</span>设置</button>
+</nav>
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
+</body></html>
