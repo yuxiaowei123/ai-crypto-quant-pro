@@ -28,6 +28,10 @@ async function fetchMarket(symbol=state.symbol){
   const j=await res.json();if(j.code!=="0"||!j.data?.length)throw Error(j.msg||"没有行情数据");
   state.ohlcv=j.data.reverse().map(r=>[+r[0],+r[1],+r[2],+r[3],+r[4],+r[5]]);
   state.price=state.ohlcv.at(-1)[4];state.signal=analyze(state.ohlcv);
+  if(state.position && state.position.symbol===symbol){
+   if(state.price<=state.position.stopLoss){closePosition("模拟止损");toast("触发模拟止损，已平仓");}
+   else if(state.price>=state.position.takeProfit){closePosition("模拟止盈");toast("触发模拟止盈，已平仓");}
+  }
   render();$("updated").textContent="最后更新："+new Date().toLocaleString();
  }catch(e){$("lastprice").textContent="行情暂不可用";toast("获取 OKX 行情失败："+e.message)}
  finally{state.busy=false}
@@ -52,17 +56,19 @@ function render(){
  $("change").textContent=(chg>=0?"+":"")+fmt(chg)+"%";$("change").className=chg>=0?"positive":"negative";
  if(state.signal){let s=state.signal;$("signaltext").textContent=s.label;$("signalpill").textContent=s.buy?"买入观察":s.sell?"卖出观察":"观望";$("signalpill").className="signal-pill "+(s.buy?"buy":s.sell?"sell":"");$("rsi").textContent=fmt(s.rsi,1);$("trend").textContent=s.trend;$("macd").textContent=fmt(s.macd,5);$("volume").textContent=s.vol?"放量":"正常";$("reason").textContent=s.reason}
  renderChart();$("port-equity").textContent=fmt(equity)+" USDT";
- $("positionbox").innerHTML=pos?`<b>${pos.symbol.replace("-","/")}</b><p class="subtle">持仓数量：${fmt(pos.qty,6)}<br>开仓价格：${fmt(pos.entry,4)} USDT<br>浮动盈亏：<b class="${unreal>=0?"positive":"negative"}">${fmt(unreal)} USDT</b></p>`:'<div class="empty">当前没有模拟持仓</div>';
+ $("positionbox").innerHTML=pos?`<b>${pos.symbol.replace("-","/")}</b><p class="subtle">持仓数量：${fmt(pos.qty,6)}<br>开仓价格：${fmt(pos.entry,4)} USDT<br>模拟止损：${fmt(pos.stopLoss,4)} USDT<br>模拟止盈：${fmt(pos.takeProfit,4)} USDT<br>浮动盈亏：<b class="${unreal>=0?"positive":"negative"}">${fmt(unreal)} USDT</b></p>`:'<div class="empty">当前没有模拟持仓</div>';
  $("historyrows").innerHTML=state.trades.length?state.trades.slice().reverse().map(t=>`<tr><td>${new Date(t.time).toLocaleString()}</td><td class="${t.side==="买入"?"positive":"negative"}">${t.side}</td><td>${fmt(t.price,4)}</td><td>${fmt(t.qty,6)}</td><td>${t.pnl==null?"—":fmt(t.pnl)}</td></tr>`).join(""):'<tr><td colspan="5" class="empty">暂无记录</td></tr>';
 }
 function paperTrade(){
  if(!state.signal)return toast("请先获取行情");
+ const today=new Date().toDateString();const dailyLoss=state.trades.filter(t=>t.side==="卖出"&&new Date(t.time).toDateString()===today).reduce((a,t)=>a+(t.pnl||0),0);
+ if(dailyLoss<=-30&&!state.position)return toast("已达到每日模拟亏损上限，暂停新开仓");
  const p=state.price,s=state.signal;
  if(state.position&&(s.sell||!s.buy)){closePosition("策略退出");toast("策略触发，已模拟平仓");return}
  if(!state.position&&s.buy){
   const risk=state.cash*.01,qtyRisk=risk/(p*.03),qtyCap=state.cash*.25/p,qty=Math.min(qtyRisk,qtyCap),cost=qty*p,fee=cost*feeRate;
   if(qty<=0||cost+fee>state.cash)return toast("模拟资金不足");
-  state.cash-=cost+fee;state.position={symbol:state.symbol,qty,entry:p,entryFee:fee};state.trades.push({time:Date.now(),side:"买入",symbol:state.symbol,price:p,qty,pnl:null});save();render();toast("模拟买入已记账");return;
+  state.cash-=cost+fee;state.position={symbol:state.symbol,qty,entry:p,entryFee:fee,stopLoss:p*.97,takeProfit:p*1.06};state.trades.push({time:Date.now(),side:"买入",symbol:state.symbol,price:p,qty,pnl:null});save();render();toast("模拟买入已记账");return;
  }
  toast("当前信号未满足开仓条件，继续观望");
 }
@@ -70,6 +76,17 @@ function closePosition(reason="手动平仓"){
  if(!state.position)return toast("当前没有持仓");
  const pos=state.position,gross=pos.qty*state.price,fee=gross*feeRate,pnl=(state.price-pos.entry)*pos.qty-pos.entryFee-fee;
  state.cash+=gross-fee;state.realized+=pnl;state.trades.push({time:Date.now(),side:"卖出",symbol:pos.symbol,price:state.price,qty:pos.qty,pnl});state.position=null;save();render();
+}
+async function loadWatchlist(){
+ const box=$("watchlist");if(!box)return;const symbols=["BTC-USDT","ETH-USDT","SOL-USDT","XRP-USDT","DOGE-USDT"];
+ box.innerHTML='<div class="empty">正在读取关注币种…</div>';
+ const rows=await Promise.all(symbols.map(async sym=>{try{const r=await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${sym}`);const j=await r.json();if(j.code!=="0"||!j.data?.[0])throw Error();const d=j.data[0],last=+d.last,chg=(last/+d.open24h-1)*100;return {sym,last,chg};}catch{return {sym,error:true}}}));
+ box.innerHTML=rows.map(x=>`<div class="coin"><div><b>${x.sym.replace("-","/")}</b><small>${x.error?"行情暂不可用":"OKX 24h 行情"}</small></div><div style="text-align:right"><b>${x.error?"--":fmt(x.last,x.last>100?2:5)}</b><small class="${x.chg>=0?"positive":"negative"}">${x.error?"--":(x.chg>=0?"+":"")+fmt(x.chg)+"%"}</small></div></div>`).join("");
+}
+function exportCSV(){
+ if(!state.trades.length)return toast("暂无交易记录可导出");
+ const rows=[["time","side","symbol","price","quantity","pnl"],...state.trades.map(t=>[new Date(t.time).toISOString(),t.side,t.symbol,t.price,t.qty,t.pnl??""])];
+ const csv="\uFEFF"+rows.map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(",")).join("\n");const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="ai-crypto-quant-pro-v2-trades.csv";a.click();URL.revokeObjectURL(url);toast("交易 CSV 已导出");
 }
 function backtest(){
  if(state.ohlcv.length<50)return toast("K线数量不足");
@@ -88,7 +105,7 @@ document.querySelectorAll(".nav button").forEach(b=>b.addEventListener("click",(
 $("symbol").addEventListener("change",e=>{state.symbol=e.target.value;fetchMarket()});
 $("refresh").onclick=()=>fetchMarket();$("runtrade").onclick=paperTrade;$("closepos").onclick=()=>closePosition();
 $("reset").onclick=()=>{if(confirm("确定清空模拟账户和所有交易记录？")){state.cash=1000;state.position=null;state.trades=[];state.realized=0;save();render();toast("模拟账户已重置")}};
-$("backtest").onclick=backtest;$("interval").onchange=()=>fetchMarket();
-restore();render();fetchMarket();setInterval(()=>fetchMarket(),60000);
+$("backtest").onclick=backtest;$("exportcsv").onclick=exportCSV;$("interval").onchange=()=>fetchMarket();
+restore();render();fetchMarket();loadWatchlist();setInterval(()=>fetchMarket(),60000);setInterval(loadWatchlist,120000);
 window.addEventListener("resize",renderChart);
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));

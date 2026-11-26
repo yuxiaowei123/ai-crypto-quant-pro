@@ -1,11 +1,11 @@
 {
-  "name": "AI Crypto Quant Pro",
-  "short_name": "Quant Pro",
+  "name": "AI Crypto Quant Pro V2",
+  "short_name": "Quant Pro V2",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#080d19",
   "theme_color": "#0b1020",
-  "description": "OKX market monitor and paper trading app",
+  "description": "V2 OKX market monitor, risk controls and paper trading app",
   "icons": [
     {
       "src": "icon-192.png",
